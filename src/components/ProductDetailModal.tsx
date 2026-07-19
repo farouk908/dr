@@ -35,10 +35,17 @@ export default function ProductDetailModal({
     if (c.includes('light blue')) return '#93c5fd';
     if (c.includes('blue') || c.includes('indigo') || c.includes('navy')) return '#1e3a8a';
     if (c.includes('light pink')) return '#ffccd9';
+    if (c.includes('dark pink')) return '#db2777';
     if (c.includes('pink') || c.includes('rose') || c.includes('orchid')) return '#fbcfe8';
+    if (c.includes('magenta')) return '#d946ef';
+    if (c.includes('wine')) return '#722f37';
+    if (c.includes('lemon')) return '#fde047';
+    if (c.includes('milk')) return '#fbf6ef';
     if (c.includes('black') || c.includes('noir') || c.includes('dark') || c.includes('onyx')) return '#111111';
     if (c.includes('nude') || c.includes('beige')) return '#e6c2a0';
     if (c.includes('bronze')) return '#cd7f32';
+    if (c.includes('brown')) return '#5c4033';
+    if (c.includes('grey') || c.includes('gray')) return '#64748b';
     if (c.includes('cream') || c.includes('ivory') || c.includes('white')) return '#fafaf9';
     if (c.includes('gold') || c.includes('amber') || c.includes('champagne')) return '#fef08a';
     if (c.includes('coral') || c.includes('orange')) return '#f87171';

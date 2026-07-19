@@ -131,12 +131,18 @@ export default function AdminPanel({ products, setProducts }: AdminPanelProps) {
     'Light Blue',
     'Pink',
     'Light Pink',
+    'Dark Pink',
+    'Magenta',
+    'Wine',
+    'Lemon',
+    'Grey',
+    'Brown',
+    'Milk',
     'Black',
     'White',
     'Red',
     'Green',
-    'Beige',
-    'Brown'
+    'Beige'
   ];
   const categoryPresets = [
     { id: 'pajamas', label: 'Pajamas / Pyjamas' },
