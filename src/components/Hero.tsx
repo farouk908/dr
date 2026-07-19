@@ -51,9 +51,9 @@ export default function Hero({ products, onExploreClick, onViewProduct }: HeroPr
             </div>
 
             <h1 className="font-serif text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.05]">
-              Silk <br />
+              Come find <br />
               <span className="font-normal italic text-brand-pink-primary font-serif">
-                & Sculpt
+                ur right fit
               </span>
             </h1>
 
