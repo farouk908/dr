@@ -16,7 +16,14 @@ import {
   Coins, 
   Tag, 
   Ruler, 
-  Palette 
+  Palette,
+  Lock,
+  Unlock,
+  Key,
+  LogOut,
+  Eye,
+  EyeOff,
+  ShieldCheck
 } from 'lucide-react';
 import { upsertProduct, deleteProduct, uploadMedia } from '../lib/api';
 import { getExtendedSizes } from '../lib/sizes';
@@ -28,6 +35,26 @@ interface AdminPanelProps {
 }
 
 export default function AdminPanel({ products, setProducts }: AdminPanelProps) {
+  // Security & Authentication States
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return sessionStorage.getItem('dr_bodyshaper_admin_logged_in') === 'true';
+  });
+  const [passcodeInput, setPasscodeInput] = useState('');
+  const [showPasscode, setShowPasscode] = useState(false);
+  const [loginError, setLoginError] = useState('');
+  const [shakeLogin, setShakeLogin] = useState(false);
+
+  // Passcode Changing States
+  const [showChangePasscodeModal, setShowChangePasscodeModal] = useState(false);
+  const [changePasscodeData, setChangePasscodeData] = useState({
+    currentPasscode: '',
+    newPasscode: '',
+    confirmNewPasscode: ''
+  });
+  const [changePasscodeError, setChangePasscodeError] = useState('');
+  const [changePasscodeSuccess, setChangePasscodeSuccess] = useState(false);
+
+  // Standard Catalog management states
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Product>>({});
   const [newFeatureText, setNewFeatureText] = useState('');
@@ -36,6 +63,66 @@ export default function AdminPanel({ products, setProducts }: AdminPanelProps) {
   const [dragActive, setDragActive] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Authentication Handlers
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const currentSecurePasscode = localStorage.getItem('dr_bodyshaper_admin_passcode') || 'admin2026';
+    
+    if (passcodeInput === currentSecurePasscode) {
+      setIsLoggedIn(true);
+      sessionStorage.setItem('dr_bodyshaper_admin_logged_in', 'true');
+      setLoginError('');
+      setPasscodeInput('');
+    } else {
+      setLoginError('Invalid Administrator Passcode. Please try again.');
+      setShakeLogin(true);
+      setTimeout(() => setShakeLogin(false), 600);
+    }
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    sessionStorage.removeItem('dr_bodyshaper_admin_logged_in');
+  };
+
+  const submitChangePasscode = (e: React.FormEvent) => {
+    e.preventDefault();
+    const currentSecurePasscode = localStorage.getItem('dr_bodyshaper_admin_passcode') || 'admin2026';
+
+    if (changePasscodeData.currentPasscode !== currentSecurePasscode) {
+      setChangePasscodeError('Current passcode is incorrect.');
+      setChangePasscodeSuccess(false);
+      return;
+    }
+
+    if (changePasscodeData.newPasscode.length < 4) {
+      setChangePasscodeError('New passcode must be at least 4 characters long.');
+      setChangePasscodeSuccess(false);
+      return;
+    }
+
+    if (changePasscodeData.newPasscode !== changePasscodeData.confirmNewPasscode) {
+      setChangePasscodeError('New passcodes do not match.');
+      setChangePasscodeSuccess(false);
+      return;
+    }
+
+    // Save and reset
+    localStorage.setItem('dr_bodyshaper_admin_passcode', changePasscodeData.newPasscode);
+    setChangePasscodeSuccess(true);
+    setChangePasscodeError('');
+    setChangePasscodeData({
+      currentPasscode: '',
+      newPasscode: '',
+      confirmNewPasscode: ''
+    });
+
+    setTimeout(() => {
+      setShowChangePasscodeModal(false);
+      setChangePasscodeSuccess(false);
+    }, 1500);
+  };
 
   // Constants
   const sizePresets = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL', '6XL', '7XL'];
@@ -268,21 +355,122 @@ export default function AdminPanel({ products, setProducts }: AdminPanelProps) {
     });
   };
 
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-[80vh] flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-12 bg-brand-cream/30">
+        <motion.div 
+          animate={{ x: shakeLogin ? [-10, 10, -10, 10, -5, 5, 0] : 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-md bg-white border border-brand-blue-primary/10 shadow-2xl p-8 sm:p-10 relative overflow-hidden"
+        >
+          {/* Subtle accent border top */}
+          <div className="absolute top-0 inset-x-0 h-1.5 bg-brand-pink-primary" />
+          
+          <div className="text-center space-y-6">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-brand-pink-light text-brand-pink-primary relative">
+              <div className="absolute inset-0 rounded-full bg-brand-pink-primary/10 animate-ping" />
+              <Lock className="w-8 h-8 relative z-10" />
+            </div>
+
+            <div>
+              <h2 className="font-serif text-3xl font-black text-brand-blue-primary tracking-tight">drbodyshaper</h2>
+              <p className="text-xs text-brand-blue-sky mt-1 font-mono uppercase tracking-widest font-bold">Admin Suite Gateway</p>
+            </div>
+
+            <p className="text-xs text-brand-blue-sky/70 leading-relaxed font-light">
+              Enter the master administrator passcode to unlock product controls, media uploads, and catalog configuration tools.
+            </p>
+
+            <form onSubmit={handleLogin} className="space-y-4 pt-2">
+              <div className="relative">
+                <input
+                  type={showPasscode ? 'text' : 'password'}
+                  required
+                  placeholder="Enter administrator passcode"
+                  value={passcodeInput}
+                  onChange={(e) => {
+                    setPasscodeInput(e.target.value);
+                    if (loginError) setLoginError('');
+                  }}
+                  className="w-full pl-10 pr-10 py-3 text-xs bg-brand-cream border border-brand-blue-primary/15 font-mono text-center tracking-widest text-brand-blue-primary rounded-none focus:outline-brand-pink-primary font-extrabold focus:bg-white"
+                />
+                <span className="absolute inset-y-0 left-3 flex items-center text-brand-blue-sky/55">
+                  <Key className="w-4 h-4" />
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowPasscode(!showPasscode)}
+                  className="absolute inset-y-0 right-3 flex items-center text-brand-blue-sky/55 hover:text-brand-pink-primary cursor-pointer transition-colors"
+                >
+                  {showPasscode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {loginError && (
+                <motion.p 
+                  initial={{ opacity: 0, y: -2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-[11px] font-semibold text-brand-pink-deep text-center"
+                >
+                  ⚠️ {loginError}
+                </motion.p>
+              )}
+
+              <button
+                type="submit"
+                className="w-full bg-brand-pink-primary hover:bg-brand-pink-deep text-white py-3 px-4 text-xs font-bold uppercase tracking-widest transition-all active:scale-[0.98] shadow-md cursor-pointer rounded-none flex items-center justify-center gap-2"
+              >
+                <Unlock className="w-4 h-4" /> Unlock Admin Panel
+              </button>
+            </form>
+
+            <div className="border-t border-brand-blue-primary/5 pt-4 text-left">
+              <p className="text-[10px] text-brand-blue-sky/50 leading-relaxed font-mono text-center">
+                Default Security Key: <span className="bg-brand-cream text-brand-pink-deep font-bold px-1 py-0.5 rounded-xs">admin2026</span>
+              </p>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       
       {/* Top Header Section */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10 border-b border-brand-blue-primary/10 pb-6">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-10 border-b border-brand-blue-primary/10 pb-6">
         <div>
           <h1 className="text-3xl font-serif font-black text-brand-blue-primary tracking-tight">Luxury Product Suite</h1>
           <p className="text-xs text-brand-blue-sky mt-1 font-mono uppercase tracking-widest">Store Admin Control Panel</p>
         </div>
-        <button 
-          onClick={handleAddNew}
-          className="flex items-center gap-2 bg-brand-pink-primary hover:bg-brand-pink-deep text-white px-5 py-3 text-xs font-bold uppercase tracking-widest transition-all shadow-md active:scale-95 cursor-pointer rounded-none"
-        >
-          <Plus className="w-4.5 h-4.5" /> Add New Master Product
-        </button>
+        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+          <button 
+            onClick={() => {
+              setChangePasscodeData({ currentPasscode: '', newPasscode: '', confirmNewPasscode: '' });
+              setChangePasscodeError('');
+              setChangePasscodeSuccess(false);
+              setShowChangePasscodeModal(true);
+            }}
+            className="flex items-center justify-center gap-2 bg-white hover:bg-brand-cream text-brand-blue-primary border border-brand-blue-primary/20 px-4 py-3 text-xs font-bold uppercase tracking-widest transition-all active:scale-95 cursor-pointer rounded-none flex-1 sm:flex-initial"
+          >
+            <Key className="w-4 h-4 text-brand-pink-primary" /> Change Passcode
+          </button>
+          
+          <button 
+            onClick={handleAddNew}
+            className="flex items-center justify-center gap-2 bg-brand-pink-primary hover:bg-brand-pink-deep text-white px-4 py-3 text-xs font-bold uppercase tracking-widest transition-all shadow-md active:scale-95 cursor-pointer rounded-none flex-1 sm:flex-initial"
+          >
+            <Plus className="w-4.5 h-4.5" /> Add New Product
+          </button>
+
+          <button 
+            onClick={handleLogout}
+            className="flex items-center justify-center gap-2 bg-red-50 hover:bg-red-600 hover:text-white text-brand-pink-deep px-4 py-3 text-xs font-bold uppercase tracking-widest transition-all active:scale-95 cursor-pointer rounded-none border border-red-200 hover:border-red-600 flex-1 sm:flex-initial"
+          >
+            <LogOut className="w-4 h-4" /> Log Out
+          </button>
+        </div>
       </div>
 
       {/* Main Table Grid View of Products */}
@@ -854,6 +1042,116 @@ export default function AdminPanel({ products, setProducts }: AdminPanelProps) {
 
               </div>
 
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Change Passcode Modal Popup */}
+      <AnimatePresence>
+        {showChangePasscodeModal && (
+          <div className="fixed inset-0 bg-brand-blue-primary/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0" onClick={() => setShowChangePasscodeModal(false)} />
+
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="relative w-full max-w-md bg-white shadow-2xl z-10 border border-brand-blue-primary/10 overflow-hidden"
+            >
+              {/* Top Pink Line */}
+              <div className="h-1.5 bg-brand-pink-primary w-full" />
+              
+              <button
+                onClick={() => setShowChangePasscodeModal(false)}
+                className="absolute right-4 top-4 p-1 bg-brand-cream hover:bg-brand-pink-light text-brand-blue-primary border border-brand-blue-primary/5 cursor-pointer transition-all"
+                aria-label="Close dialog"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              <form onSubmit={submitChangePasscode} className="p-6 sm:p-8 space-y-5 text-left">
+                <div>
+                  <h3 className="text-lg font-serif font-black text-brand-blue-primary flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-brand-pink-primary" /> Update Admin Passcode
+                  </h3>
+                  <p className="text-[11px] text-brand-blue-sky/70 mt-1">
+                    Keep your store configuration secure by updating the master access code.
+                  </p>
+                </div>
+
+                {changePasscodeError && (
+                  <div className="p-3 bg-red-50 text-brand-pink-deep border border-red-100 text-xs font-semibold">
+                    ⚠️ {changePasscodeError}
+                  </div>
+                )}
+
+                {changePasscodeSuccess && (
+                  <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-100 text-xs font-semibold flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600" /> Passcode updated successfully!
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[9px] font-mono font-bold uppercase tracking-wider text-brand-blue-primary mb-1.5">
+                      Current Passcode
+                    </label>
+                    <input 
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={changePasscodeData.currentPasscode}
+                      onChange={e => setChangePasscodeData({...changePasscodeData, currentPasscode: e.target.value})}
+                      className="w-full border border-brand-blue-primary/20 px-3 py-2 text-xs font-mono rounded-none focus:outline-brand-pink-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] font-mono font-bold uppercase tracking-wider text-brand-blue-primary mb-1.5">
+                      New Passcode (min 4 characters)
+                    </label>
+                    <input 
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={changePasscodeData.newPasscode}
+                      onChange={e => setChangePasscodeData({...changePasscodeData, newPasscode: e.target.value})}
+                      className="w-full border border-brand-blue-primary/20 px-3 py-2 text-xs font-mono rounded-none focus:outline-brand-pink-primary"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] font-mono font-bold uppercase tracking-wider text-brand-blue-primary mb-1.5">
+                      Confirm New Passcode
+                    </label>
+                    <input 
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={changePasscodeData.confirmNewPasscode}
+                      onChange={e => setChangePasscodeData({...changePasscodeData, confirmNewPasscode: e.target.value})}
+                      className="w-full border border-brand-blue-primary/20 px-3 py-2 text-xs font-mono rounded-none focus:outline-brand-pink-primary"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowChangePasscodeModal(false)}
+                    className="px-4 py-2.5 border border-brand-blue-primary/10 hover:bg-slate-50 text-brand-blue-primary text-xs font-bold uppercase tracking-widest cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 bg-brand-pink-primary hover:bg-brand-pink-deep text-white text-xs font-bold uppercase tracking-widest cursor-pointer shadow-sm transition-colors"
+                  >
+                    Save Code
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
