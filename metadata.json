@@ -1,0 +1,6 @@
+{
+  "name": "Dr Bodyshaper",
+  "description": "Luxury Nigerian boutique for premium shapewear, silk loungewear, and resort swimwear.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
