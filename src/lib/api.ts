@@ -55,12 +55,15 @@ export async function fetchProducts(): Promise<Product[] | null> {
   try {
     const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
     if (error) {
-      console.error('Error fetching products:', error);
+      console.warn(
+        'Note: Could not fetch products from Supabase. This usually means the "products" table has not been created yet in your Supabase dashboard. Please run the SQL schema in /supabase-schema.sql to set up your tables.',
+        error
+      );
       return null;
     }
     return data.map(mapRowToProduct);
   } catch (err) {
-    console.error('Supabase fetch failed:', err);
+    console.warn('Supabase fetch failed or table is missing:', err);
     return null;
   }
 }
@@ -101,8 +104,20 @@ export async function deleteProduct(productId: string): Promise<boolean> {
 }
 
 export async function uploadMedia(file: File): Promise<string | null> {
+  const readAsBase64 = (f: File): Promise<string | null> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(f);
+    });
+  };
+
   const supabase = getSupabase();
-  if (!supabase) return null;
+  if (!supabase) {
+    console.log('No Supabase client found. Falling back to base64 Data URL for local presentation.');
+    return readAsBase64(file);
+  }
 
   try {
     const fileExt = file.name.split('.').pop();
@@ -114,8 +129,8 @@ export async function uploadMedia(file: File): Promise<string | null> {
       .upload(filePath, file);
 
     if (uploadError) {
-      console.error('Error uploading file:', uploadError);
-      return null;
+      console.warn('Supabase storage upload failed, falling back to base64 Data URL:', uploadError);
+      return readAsBase64(file);
     }
 
     const { data } = supabase.storage
@@ -124,7 +139,7 @@ export async function uploadMedia(file: File): Promise<string | null> {
 
     return data.publicUrl;
   } catch (err) {
-    console.error('Upload exception:', err);
-    return null;
+    console.warn('Upload exception occurred, falling back to base64 Data URL:', err);
+    return readAsBase64(file);
   }
 }

@@ -2,7 +2,7 @@ export interface Product {
   id: string;
   sku: string;
   name: string;
-  category: 'shapewear' | 'loungewear' | 'swimwear' | 'underwear';
+  category: string;
   categoryLabel: string;
   price: number;
   originalPrice?: number;
@@ -16,6 +16,7 @@ export interface Product {
   isBestSeller: boolean;
   isNew: boolean;
   discountPercentage?: number;
+  badge?: string;
 }
 
 export interface CartItem {
