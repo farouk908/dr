@@ -127,16 +127,16 @@ export default function AdminPanel({ products, setProducts }: AdminPanelProps) {
   // Constants
   const sizePresets = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL', '6XL', '7XL'];
   const colorPresets = [
-    'Classic Black',
-    'Onyx Black',
-    'Nude Beige',
-    'Mocha Brown',
-    'Ivory White',
-    'Rose Pink',
-    'Bronze',
-    'Indigo Blue',
-    'Emerald Green',
-    'Cherry Red'
+    'Blue',
+    'Light Blue',
+    'Pink',
+    'Light Pink',
+    'Black',
+    'White',
+    'Red',
+    'Green',
+    'Beige',
+    'Brown'
   ];
   const categoryPresets = [
     { id: 'pajamas', label: 'Pajamas / Pyjamas' },

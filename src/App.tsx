@@ -19,7 +19,9 @@ import {
   X,
   Home,
   Moon,
-  Compass
+  Compass,
+  Truck,
+  Store
 } from 'lucide-react';
 
 import Header from './components/Header';
@@ -122,7 +124,9 @@ export default function App() {
   // Checkout Inquiry draft preview modal state
   const [checkoutPreviewOpen, setCheckoutPreviewOpen] = useState(false);
   const [customerName, setCustomerName] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery');
   const [deliveryLocation, setDeliveryLocation] = useState('Lagos Island');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
 
   // Sync state changes with localStorage
   useEffect(() => {
@@ -226,12 +230,19 @@ export default function App() {
     // Build a custom message block which includes custom customer metadata
     let customEmailBlock = userEmail;
     if (customerName) {
-      customEmailBlock += ` (${customerName}, Delivery: ${deliveryLocation})`;
+      if (deliveryMethod === 'delivery') {
+        customEmailBlock += ` (${customerName}, Option: Delivery to ${deliveryLocation})`;
+      } else {
+        customEmailBlock += ` (${customerName}, Option: Pickup in Shop)`;
+      }
     }
 
     const whatsappUrl = compileWhatsAppCheckoutUrl({
       cartItems,
-      userEmail: customEmailBlock
+      userEmail: customEmailBlock,
+      deliveryMethod,
+      deliveryLocation: deliveryMethod === 'delivery' ? deliveryLocation : undefined,
+      deliveryAddress: deliveryMethod === 'delivery' ? deliveryAddress : undefined
     });
 
     // Open link in new tab to route seamlessly
@@ -694,68 +705,157 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Personalization Inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[9px] font-mono uppercase text-brand-blue-sky font-bold block">
-                    Your Name
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Chioma Adebayo"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-none border border-brand-blue-primary/15 bg-brand-cream focus:bg-white focus:outline-hidden outline-hidden font-bold"
-                  />
+              {/* Personalization & Delivery preference selection */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-mono uppercase text-brand-blue-sky font-bold block">
+                      Your Full Name
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Chioma Adebayo"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="w-full px-3 py-2 text-xs rounded-none border border-brand-blue-primary/15 bg-brand-cream focus:bg-white focus:outline-hidden outline-hidden font-bold text-brand-blue-primary"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-mono uppercase text-brand-blue-sky font-bold block">
+                      Delivery Option
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryMethod('delivery')}
+                        className={`flex items-center justify-center gap-1.5 py-1.5 px-3 text-[10px] font-bold uppercase tracking-wider transition-all border cursor-pointer ${
+                          deliveryMethod === 'delivery'
+                            ? 'bg-brand-blue-primary text-white border-brand-blue-primary font-bold'
+                            : 'bg-brand-cream text-brand-blue-sky border-brand-blue-primary/10 hover:bg-white'
+                        }`}
+                      >
+                        <Truck className="w-3.5 h-3.5" /> Delivery
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryMethod('pickup')}
+                        className={`flex items-center justify-center gap-1.5 py-1.5 px-3 text-[10px] font-bold uppercase tracking-wider transition-all border cursor-pointer ${
+                          deliveryMethod === 'pickup'
+                            ? 'bg-brand-blue-primary text-white border-brand-blue-primary font-bold'
+                            : 'bg-brand-cream text-brand-blue-sky border-brand-blue-primary/10 hover:bg-white'
+                        }`}
+                      >
+                        <Store className="w-3.5 h-3.5" /> Shop Pickup
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-[9px] font-mono uppercase text-brand-blue-sky font-bold block">
-                    Delivery Location
-                  </label>
-                  <select
-                    value={deliveryLocation}
-                    onChange={(e) => setDeliveryLocation(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-none border border-brand-blue-primary/15 bg-brand-cream focus:bg-white focus:outline-hidden outline-hidden cursor-pointer font-bold"
+
+                {/* Conditional fields based on selected preference */}
+                {deliveryMethod === 'delivery' ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1"
                   >
-                    <option value="Lagos Island">Lagos Island (Ikoyi, VI, Lekki)</option>
-                    <option value="Lagos Mainland">Lagos Mainland (Ikeja, Surulere, Yaba)</option>
-                    <option value="Abuja FCT">Abuja FCT (Maitama, Wuse)</option>
-                    <option value="Port Harcourt">Port Harcourt City</option>
-                    <option value="Other Nigerian State">Other Nigerian State (FedEx Courier)</option>
-                  </select>
-                </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-mono uppercase text-brand-blue-sky font-bold block">
+                        Delivery Region / State
+                      </label>
+                      <select
+                        value={deliveryLocation}
+                        onChange={(e) => setDeliveryLocation(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-none border border-brand-blue-primary/15 bg-brand-cream focus:bg-white focus:outline-hidden outline-hidden cursor-pointer font-bold text-brand-blue-primary"
+                      >
+                        <option value="Lagos Island">Lagos Island (Ikoyi, VI, Lekki, Chevron)</option>
+                        <option value="Lagos Mainland">Lagos Mainland (Ikeja, Surulere, Yaba, Gbagada)</option>
+                        <option value="Abuja FCT">Abuja FCT (Maitama, Wuse, Garki)</option>
+                        <option value="Port Harcourt">Port Harcourt City</option>
+                        <option value="Other Nigerian State">Other Nigerian State (FedEx Courier)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-mono uppercase text-brand-pink-deep font-bold block flex justify-between">
+                        <span>Write Delivery Address *</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. 15 Admiralty Way, Lekki Phase 1, Lagos"
+                        value={deliveryAddress}
+                        onChange={(e) => setDeliveryAddress(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-none border border-brand-blue-primary/15 bg-brand-cream focus:bg-white focus:outline-hidden outline-hidden font-bold text-brand-blue-primary placeholder:text-brand-blue-sky/40"
+                      />
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="bg-brand-pink-light/45 border border-brand-pink-medium/15 p-3 text-xs text-brand-blue-primary flex items-start gap-3"
+                  >
+                    <MapPin className="w-4 h-4 text-brand-pink-primary shrink-0 mt-0.5" />
+                    <div className="space-y-0.5 text-left">
+                      <p className="font-bold uppercase tracking-wider text-[10px] text-brand-pink-deep">
+                        Complimentary Flagship Store Pickup
+                      </p>
+                      <p className="text-[10.5px] leading-relaxed text-brand-blue-sky/85 font-light">
+                        Pre-packaged and waiting for you at our high-end concierge lounge. No delivery fees apply.
+                      </p>
+                      <p className="text-[10px] font-mono font-bold mt-1 text-brand-blue-primary">
+                        📍 Dr Bodyshaper Boutique Headquarters, VI, Lagos, Nigeria.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
               {/* Live Preview of formatted Inquiry block */}
               <div className="space-y-1.5">
                 <p className="text-[9px] font-mono uppercase text-brand-blue-sky font-bold">
-                  Formatted Draft Message:
+                  Formatted Draft Message (Includes Photo URLs):
                 </p>
                 
                 <div className="bg-brand-cream p-4 rounded-none border border-dotted border-brand-pink-medium/60 max-h-[220px] overflow-y-auto font-mono text-[10px] text-brand-blue-primary whitespace-pre-wrap leading-relaxed">
-                  {`✦ DR BODYSHAPER ORDER ✦\n`}
-                  {`===================================\n`}
-                  {`Hello drbodyshaper,\n\n`}
-                  {`I would like to place an order for the following items:\n\n`}
-                  {cartItems.map((item, index) => (
-                    `${index + 1}. ${item.product.name.toUpperCase()}\n` +
-                    `   • SKU: ${item.product.sku}\n` +
-                    `   • Selected Color: ${item.selectedColor}\n` +
-                    `   • Selected Size: ${item.selectedSize}\n` +
-                    `   • Quantity: ${item.quantity}\n` +
-                    `   • Unit Price: ${formatNairaValue(item.product.price)}\n` +
-                    `   • Item Subtotal: ${formatNairaValue(item.product.price * item.quantity)}\n\n`
-                  )).join('')}
+                  {`✦ DR BODYSHAPER BOUTIQUE LUXURY ORDER ✦\n`}
+                  {`===================================\n\n`}
+                  {`Hello Dr Bodyshaper Concierge,\n\n`}
+                  {`I would like to place an order for the following luxury garments:\n\n`}
+                  {cartItems.map((item, index) => {
+                    const itemSub = item.product.price * item.quantity;
+                    const primaryMedia = item.product.images?.[0] || '';
+                    return (
+                      `${index + 1}. ${item.product.name.toUpperCase()}\n` +
+                      `   • SKU: ${item.product.sku}\n` +
+                      `   • Selected Color: ${item.selectedColor}\n` +
+                      `   • Selected Size: ${item.selectedSize}\n` +
+                      `   • Quantity: ${item.quantity}\n` +
+                      `   • Unit Price: ${formatNairaValue(item.product.price)}\n` +
+                      `   • Item Subtotal: ${formatNairaValue(itemSub)}\n` +
+                      (primaryMedia ? `   • Product Photo: ${primaryMedia}\n` : '') +
+                      `\n`
+                    );
+                  }).join('')}
                   {`===================================\n`}
                   {`Order Subtotal: ${formatNairaValue(cartItems.reduce((acc, i) => acc + i.product.price * i.quantity, 0))}\n`}
-                  {`Delivery Duty: ${cartItems.reduce((acc, i) => acc + i.product.price * i.quantity, 0) >= 150000 ? 'FREE (COMPLIMENTARY PROMO)' : '₦5,000'}\n`}
+                  {`Delivery Option: ${deliveryMethod === 'pickup' ? 'PICKUP IN SHOP (Complimentary)' : 'DELIVERY TO ADDRESS'}\n`}
+                  {deliveryMethod === 'delivery' ? (
+                    `Delivery Region: ${deliveryLocation}\n` +
+                    `Delivery Address: ${deliveryAddress || 'No address specified'}\n` +
+                    `Delivery Fee: ${cartItems.reduce((acc, i) => acc + i.product.price * i.quantity, 0) >= 150000 ? 'FREE (COMPLIMENTARY PROMO)' : '₦5,000'}\n`
+                  ) : (
+                    `Pickup Location: Dr Bodyshaper Flagship Store, Lagos, Nigeria\n` +
+                    `Delivery Fee: FREE (SHOP PICKUP)\n`
+                  )}
                   {`-----------------------------------\n`}
                   {`ESTIMATED GRAND TOTAL: ${formatNairaValue(
                     cartItems.reduce((acc, i) => acc + i.product.price * i.quantity, 0) + 
-                    (cartItems.reduce((acc, i) => acc + i.product.price * i.quantity, 0) >= 150000 ? 0 : 5000)
+                    (deliveryMethod === 'pickup' || cartItems.reduce((acc, i) => acc + i.product.price * i.quantity, 0) >= 150000 ? 0 : 5000)
                   )}\n`}
                   {`===================================\n\n`}
-                  {`Customer Email: faroukayomide33@gmail.com${customerName ? ` (${customerName}, Delivery: ${deliveryLocation})` : ''}\n`}
+                  {`Customer Info: faroukayomide33@gmail.com${customerName ? ` (${customerName}, Option: ${deliveryMethod === 'delivery' ? `Delivery to ${deliveryLocation}` : 'Pickup in Shop'})` : ''}\n`}
                   {`Session Timestamp: ${new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })} (Lagos Time)\n\n`}
                   {`Please confirm item availability, bespoke fitting options, and dispatch window. Thank you!`}
                 </div>
@@ -772,7 +872,12 @@ export default function App() {
                 
                 <button
                   onClick={executeCheckout}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-brand-blue-primary hover:bg-brand-pink-medium hover:text-white text-white rounded-none text-xs font-bold uppercase tracking-wider transition-all cursor-pointer"
+                  disabled={deliveryMethod === 'delivery' && !deliveryAddress.trim()}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 text-white rounded-none text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${
+                    deliveryMethod === 'delivery' && !deliveryAddress.trim()
+                      ? 'bg-slate-300 border-slate-300 text-slate-500 cursor-not-allowed opacity-60'
+                      : 'bg-brand-blue-primary hover:bg-brand-pink-medium hover:text-white'
+                  }`}
                 >
                   <MessageSquare className="w-4 h-4 text-white" />
                   Launch WhatsApp Support

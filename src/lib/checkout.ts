@@ -14,16 +14,25 @@ export const formatNairaValue = (amount: number) => {
 interface CompileCheckoutParams {
   cartItems: CartItem[];
   userEmail?: string;
+  deliveryMethod?: 'delivery' | 'pickup';
+  deliveryLocation?: string;
+  deliveryAddress?: string;
 }
 
 /**
  * Compiles selected cart items into a highly formatted, polite WhatsApp inquiry block.
  * Encodes it as a URI and returns the direct WhatsApp URL.
  */
-export function compileWhatsAppCheckoutUrl({ cartItems, userEmail }: CompileCheckoutParams): string {
+export function compileWhatsAppCheckoutUrl({ 
+  cartItems, 
+  userEmail,
+  deliveryMethod = 'delivery',
+  deliveryLocation = 'Lagos Island',
+  deliveryAddress = ''
+}: CompileCheckoutParams): string {
   const subtotal = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
   const freeShippingThreshold = 150000;
-  const isFreeShipping = subtotal >= freeShippingThreshold;
+  const isFreeShipping = deliveryMethod === 'pickup' || subtotal >= freeShippingThreshold;
   const deliveryCharge = isFreeShipping ? 0 : 5000;
   const grandTotal = subtotal + deliveryCharge;
 
@@ -34,24 +43,39 @@ export function compileWhatsAppCheckoutUrl({ cartItems, userEmail }: CompileChec
 
   cartItems.forEach((item, index) => {
     const itemSub = item.product.price * item.quantity;
+    const primaryMedia = item.product.images?.[0] || '';
     message += `${index + 1}. ${item.product.name.toUpperCase()}\n`;
     message += `   • SKU: ${item.product.sku}\n`;
     message += `   • Selected Color: ${item.selectedColor}\n`;
     message += `   • Selected Size: ${item.selectedSize}\n`;
     message += `   • Quantity: ${item.quantity}\n`;
     message += `   • Unit Price: ${formatNairaValue(item.product.price)}\n`;
-    message += `   • Item Subtotal: ${formatNairaValue(itemSub)}\n\n`;
+    message += `   • Item Subtotal: ${formatNairaValue(itemSub)}\n`;
+    if (primaryMedia) {
+      message += `   • Product Photo: ${primaryMedia}\n`;
+    }
+    message += `\n`;
   });
 
   message += `===================================\n`;
   message += `Order Subtotal: ${formatNairaValue(subtotal)}\n`;
-  message += `Delivery Duty: ${isFreeShipping ? 'FREE (COMPLIMENTARY PROMO)' : formatNairaValue(deliveryCharge)}\n`;
+  message += `Delivery Option: ${deliveryMethod === 'pickup' ? 'PICKUP IN SHOP (Complimentary)' : 'DELIVERY TO ADDRESS'}\n`;
+  
+  if (deliveryMethod === 'delivery') {
+    message += `Delivery Region: ${deliveryLocation}\n`;
+    message += `Delivery Address: ${deliveryAddress || 'No address specified'}\n`;
+    message += `Delivery Fee: ${isFreeShipping ? 'FREE (COMPLIMENTARY PROMO)' : formatNairaValue(deliveryCharge)}\n`;
+  } else {
+    message += `Pickup Location: Dr Bodyshaper Flagship Store, Lagos, Nigeria\n`;
+    message += `Delivery Fee: FREE (SHOP PICKUP)\n`;
+  }
+  
   message += `-----------------------------------\n`;
   message += `ESTIMATED GRAND TOTAL: ${formatNairaValue(grandTotal)}\n`;
   message += `===================================\n\n`;
 
   if (userEmail) {
-    message += `Customer Email: ${userEmail}\n`;
+    message += `Customer Email/Info: ${userEmail}\n`;
   }
   
   message += `Session Timestamp: ${new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })} (Lagos Time)\n\n`;

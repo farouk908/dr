@@ -25,14 +25,16 @@ export default function ProductCard({ product, onViewDetails, onQuickAdd }: Prod
 
   const getColorHex = (color: string): string => {
     const c = color.toLowerCase();
+    if (c.includes('light blue')) return '#93c5fd';
+    if (c.includes('blue') || c.includes('indigo') || c.includes('navy')) return '#1e3a8a';
+    if (c.includes('light pink')) return '#ffccd9';
+    if (c.includes('pink') || c.includes('rose') || c.includes('orchid')) return '#fbcfe8';
     if (c.includes('black') || c.includes('noir') || c.includes('dark') || c.includes('onyx')) return '#111111';
     if (c.includes('nude') || c.includes('beige')) return '#e6c2a0';
     if (c.includes('bronze')) return '#cd7f32';
-    if (c.includes('pink') || c.includes('rose') || c.includes('orchid')) return '#fbcfe8';
-    if (c.includes('indigo') || c.includes('blue') || c.includes('navy')) return '#1e3a8a';
-    if (c.includes('cream') || c.includes('ivory')) return '#fafaf9';
+    if (c.includes('cream') || c.includes('ivory') || c.includes('white')) return '#fafaf9';
     if (c.includes('gold') || c.includes('amber') || c.includes('champagne')) return '#fef08a';
-    if (c.includes('coral')) return '#f87171';
+    if (c.includes('coral') || c.includes('orange')) return '#f87171';
     if (c.includes('green')) return '#15803d';
     return '#94a3b8';
   };

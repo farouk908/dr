@@ -20,7 +20,7 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?q=80&w=600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1581338834647-b0fb40704e21?q=80&w=600&auto=format&fit=crop'
     ],
-    colors: ['Onyx Black', 'Ebonee Nude', 'Warm Bronze'],
+    colors: ['Black', 'Beige', 'Brown'],
     sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'],
     rating: 4.9,
     reviewsCount: 148,
@@ -46,7 +46,7 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1566207274740-0f8cf6b7d5a5?q=80&w=600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=600&auto=format&fit=crop'
     ],
-    colors: ['Blush Pink', 'Sapphire Indigo', 'Ivory Cream'],
+    colors: ['Light Pink', 'Blue', 'White'],
     sizes: ['S', 'M', 'L', 'XL'],
     rating: 4.8,
     reviewsCount: 82,
@@ -72,7 +72,7 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?q=80&w=600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1507553138344-304449ec0109?q=80&w=600&auto=format&fit=crop'
     ],
-    colors: ['Sunset Coral', 'Deep Ocean Blue', 'Emerald Green'],
+    colors: ['Pink', 'Light Blue', 'Green'],
     sizes: ['S', 'M', 'L', 'XL'],
     rating: 4.7,
     reviewsCount: 64,
@@ -100,7 +100,7 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1616606103915-dea7be788566?q=80&w=600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1608748010899-18f300247112?q=80&w=600&auto=format&fit=crop'
     ],
-    colors: ['Blush Rose', 'Midnight Noir', 'Ivory Lace'],
+    colors: ['Pink', 'Black', 'White'],
     sizes: ['S', 'M', 'L', 'XL'],
     rating: 4.9,
     reviewsCount: 51,
@@ -126,7 +126,7 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1509631179647-0177331693ae?q=80&w=600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=600&auto=format&fit=crop'
     ],
-    colors: ['Sand Beige', 'Onyx Black'],
+    colors: ['Beige', 'Black'],
     sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'],
     rating: 4.9,
     reviewsCount: 215,
@@ -152,7 +152,7 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1618220179428-22790b461013?q=80&w=600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1501908731398-48a600290543?q=80&w=600&auto=format&fit=crop'
     ],
-    colors: ['Midnight Navy', 'Sakura Pink', 'Champagne Gold'],
+    colors: ['Blue', 'Pink', 'White'],
     sizes: ['XS', 'S', 'M', 'L', 'XL'],
     rating: 5.0,
     reviewsCount: 93,
@@ -178,7 +178,7 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1588117260548-94db73cee0d6?q=80&w=600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?q=80&w=600&auto=format&fit=crop'
     ],
-    colors: ['Gilded Blue', 'Blush Orchid', 'Sunset Amber'],
+    colors: ['Blue', 'Light Pink', 'Pink'],
     sizes: ['One Size Fits All'],
     rating: 4.6,
     reviewsCount: 37,
@@ -206,7 +206,7 @@ export const products: Product[] = [
       'https://images.unsplash.com/photo-1608748010899-18f300247112?q=80&w=600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1616606103915-dea7be788566?q=80&w=600&auto=format&fit=crop'
     ],
-    colors: ['Blush Rose Pack', 'Classic Dark Pack'],
+    colors: ['Light Pink', 'Black'],
     sizes: ['S', 'M', 'L', 'XL', 'XXL'],
     rating: 4.8,
     reviewsCount: 79,
