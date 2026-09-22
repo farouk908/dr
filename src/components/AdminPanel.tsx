@@ -26,6 +26,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { upsertProduct, deleteProduct, uploadMedia } from '../lib/api';
+import { persistProducts } from '../lib/storage';
 import { getExtendedSizes } from '../lib/sizes';
 import { Product } from '../types';
 
@@ -281,6 +282,7 @@ export default function AdminPanel({ products, setProducts }: AdminPanelProps) {
     }
     
     setProducts(updatedProducts);
+    await persistProducts(updatedProducts);
     setEditingId(null);
     setFormData({});
     setIsSaving(false);
@@ -289,7 +291,9 @@ export default function AdminPanel({ products, setProducts }: AdminPanelProps) {
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this product? All reviews and data will be removed.')) {
       await deleteProduct(id);
-      setProducts(products.filter(p => p.id !== id));
+      const remainingProducts = products.filter(p => p.id !== id);
+      setProducts(remainingProducts);
+      await persistProducts(remainingProducts);
     }
   };
 

@@ -227,13 +227,13 @@ export default function CartDrawer({
                   <div className="flex justify-between text-xs text-brand-blue-sky">
                     <span>Shipping</span>
                     <span className="text-brand-pink-medium font-mono font-semibold">
-                      {isFreeShipping ? "Free" : "₦5,000"}
+                      {isFreeShipping ? "Free (₦150k+ Promo)" : "Calculated at checkout"}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm text-brand-blue-primary border-t border-brand-blue-primary/10 pt-3 font-bold">
-                    <span>Total</span>
+                    <span>Estimated Total</span>
                     <span className="font-serif text-base text-brand-blue-primary">
-                      {formatNaira(isFreeShipping ? subtotal : subtotal + 5000)}
+                      {formatNaira(subtotal)}
                     </span>
                   </div>
                 </div>

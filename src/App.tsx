@@ -37,6 +37,9 @@ import { Product, CartItem, SortOption } from './types';
 import { compileWhatsAppCheckoutUrl, formatNairaValue } from './lib/checkout';
 import { fetchProducts } from './lib/api';
 import { getExtendedSizes } from './lib/sizes';
+import { getInitialSyncProducts, loadStoredProducts, persistProducts } from './lib/storage';
+import { getDeliveryZoneById, calculateDeliveryFee } from './lib/delivery';
+import { DeliveryCostCalculator } from './components/DeliveryCostCalculator';
 
 const categories = [
   { id: 'all', label: 'All Products' },
@@ -57,28 +60,30 @@ export default function App() {
   const [sortOption, setSortOption] = useState<SortOption>('newest');
   
   const [appProducts, setAppProducts] = useState<Product[]>(() => {
-    try {
-      const saved = localStorage.getItem('dr_bodyshaper_products');
-      const rawProducts = saved ? JSON.parse(saved) : defaultProducts;
-      return rawProducts.map((p: Product) => ({ ...p, sizes: getExtendedSizes(p.sizes) }));
-    } catch {
-      return defaultProducts.map((p: Product) => ({ ...p, sizes: getExtendedSizes(p.sizes) }));
-    }
+    return getInitialSyncProducts();
   });
 
-  // Supabase data fetch
+  // Load products from IndexedDB & Supabase
   useEffect(() => {
     async function loadData() {
+      // 1. Read persistent IndexedDB storage
+      const stored = await loadStoredProducts();
+      if (stored && stored.length > 0) {
+        setAppProducts(stored.map((p: Product) => ({ ...p, sizes: getExtendedSizes(p.sizes) })));
+      }
+      
+      // 2. Fetch from Supabase if configured
       const dbProducts = await fetchProducts();
       if (dbProducts && dbProducts.length > 0) {
         setAppProducts(dbProducts.map((p: Product) => ({ ...p, sizes: getExtendedSizes(p.sizes) })));
+        await persistProducts(dbProducts);
       }
     }
     loadData();
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('dr_bodyshaper_products', JSON.stringify(appProducts));
+    persistProducts(appProducts);
   }, [appProducts]);
 
   useEffect(() => {
@@ -125,7 +130,7 @@ export default function App() {
   const [checkoutPreviewOpen, setCheckoutPreviewOpen] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery');
-  const [deliveryLocation, setDeliveryLocation] = useState('Lagos Island');
+  const [selectedDeliveryZoneId, setSelectedDeliveryZoneId] = useState('lagos-island');
   const [deliveryAddress, setDeliveryAddress] = useState('');
 
   // Sync state changes with localStorage
@@ -223,6 +228,11 @@ export default function App() {
       return b.isNew ? 1 : -1;
     });
 
+  const cartSubtotal = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+  const currentZone = getDeliveryZoneById(selectedDeliveryZoneId);
+  const deliveryCalc = calculateDeliveryFee(deliveryMethod, selectedDeliveryZoneId, cartSubtotal);
+  const checkoutGrandTotal = cartSubtotal + deliveryCalc.fee;
+
   // Execute checkout compilation and redirect to WhatsApp
   const executeCheckout = () => {
     const userEmail = "faroukayomide33@gmail.com";
@@ -231,7 +241,7 @@ export default function App() {
     let customEmailBlock = userEmail;
     if (customerName) {
       if (deliveryMethod === 'delivery') {
-        customEmailBlock += ` (${customerName}, Option: Delivery to ${deliveryLocation})`;
+        customEmailBlock += ` (${customerName}, Region: ${currentZone.name})`;
       } else {
         customEmailBlock += ` (${customerName}, Option: Pickup in Shop)`;
       }
@@ -241,8 +251,11 @@ export default function App() {
       cartItems,
       userEmail: customEmailBlock,
       deliveryMethod,
-      deliveryLocation: deliveryMethod === 'delivery' ? deliveryLocation : undefined,
-      deliveryAddress: deliveryMethod === 'delivery' ? deliveryAddress : undefined
+      deliveryLocation: currentZone.name,
+      deliveryZoneId: selectedDeliveryZoneId,
+      deliveryAddress: deliveryMethod === 'delivery' ? deliveryAddress : undefined,
+      deliveryFee: deliveryCalc.fee,
+      transitTime: currentZone.transitTime
     });
 
     // Open link in new tab to route seamlessly
@@ -326,31 +339,41 @@ export default function App() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
-                  {appProducts.slice(0, 4).map((product) => (
-                    <div key={product.id} className="relative">
-                      {/* Embedded interactive wishlist heart button directly in grid */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleToggleWishlist(product);
-                        }}
-                        className="absolute top-2 sm:top-3 right-2 sm:right-3 z-15 p-1.5 sm:p-2.5 bg-brand-cream hover:bg-brand-pink-light border border-brand-blue-primary/10 rounded-none text-brand-blue-primary hover:text-rose-500 transition-all shadow-xs focus:outline-hidden cursor-pointer active:scale-95"
-                        title={wishlist.some(item => item.id === product.id) ? "Remove from wishlist" : "Add to wishlist"}
-                      >
-                        <Heart 
-                          className={`w-3.5 sm:w-4 h-3.5 sm:h-4 ${wishlist.some(item => item.id === product.id) ? 'fill-rose-500 text-rose-500' : 'text-brand-blue-sky'}`} 
-                        />
-                      </button>
+                {appProducts.length === 0 ? (
+                  <div className="py-12 px-6 border border-dashed border-brand-pink-medium/40 bg-brand-cream/60 text-center max-w-lg mx-auto space-y-3">
+                    <Sparkles className="w-6 h-6 text-brand-pink-medium mx-auto" />
+                    <h3 className="font-serif text-lg font-bold text-brand-blue-deep">New Arrivals Coming Soon</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed font-light">
+                      Our new luxury sleepwear and body shapewear collections are being curated. Check back shortly for exclusive arrivals.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
+                    {appProducts.slice(0, 4).map((product) => (
+                      <div key={product.id} className="relative">
+                        {/* Embedded interactive wishlist heart button directly in grid */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleWishlist(product);
+                          }}
+                          className="absolute top-2 sm:top-3 right-2 sm:right-3 z-15 p-1.5 sm:p-2.5 bg-brand-cream hover:bg-brand-pink-light border border-brand-blue-primary/10 rounded-none text-brand-blue-primary hover:text-rose-500 transition-all shadow-xs focus:outline-hidden cursor-pointer active:scale-95"
+                          title={wishlist.some(item => item.id === product.id) ? "Remove from wishlist" : "Add to wishlist"}
+                        >
+                          <Heart 
+                            className={`w-3.5 sm:w-4 h-3.5 sm:h-4 ${wishlist.some(item => item.id === product.id) ? 'fill-rose-500 text-rose-500' : 'text-brand-blue-sky'}`} 
+                          />
+                        </button>
 
-                      <ProductCard
-                        product={product}
-                        onViewDetails={(prod) => setSelectedProductForModal(prod)}
-                        onQuickAdd={(prod, color, size) => handleAddToBag(prod, color, size, 1)}
-                      />
-                    </div>
-                  ))}
-                </div>
+                        <ProductCard
+                          product={product}
+                          onViewDetails={(prod) => setSelectedProductForModal(prod)}
+                          onQuickAdd={(prod, color, size) => handleAddToBag(prod, color, size, 1)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="text-center mt-12">
                   <button
@@ -507,23 +530,33 @@ export default function App() {
                 {filteredProducts.length === 0 ? (
                   <div className="py-20 text-center max-w-md mx-auto space-y-4">
                     <div className="p-5 bg-brand-pink-light/40 rounded-full inline-block text-brand-pink-primary">
-                      <Info className="w-8 h-8" />
+                      {appProducts.length === 0 ? <ShoppingBag className="w-8 h-8" /> : <Info className="w-8 h-8" />}
                     </div>
                     <div className="space-y-1">
-                      <h3 className="font-serif text-lg font-bold text-brand-blue-deep">No Items Found</h3>
+                      <h3 className="font-serif text-lg font-bold text-brand-blue-deep">
+                        {appProducts.length === 0 ? 'No Products in Catalog Yet' : 'No Items Found'}
+                      </h3>
                       <p className="text-xs text-slate-500 font-light leading-relaxed">
-                        No items matched your search filters. Try resetting the search filters.
+                        {appProducts.length === 0 
+                          ? 'Your catalog is clean. Add your genuine garments with bespoke colors, sizes, and pricing through the Admin Panel.'
+                          : 'No items matched your search filters. Try resetting the search filters.'}
                       </p>
                     </div>
-                    <button
-                      onClick={() => {
-                        setSelectedCategory('all');
-                        setSearchQuery('');
-                      }}
-                      className="px-5 py-2.5 bg-brand-blue-deep hover:bg-brand-pink-deep text-white text-xs font-semibold uppercase tracking-wider rounded-full transition-colors cursor-pointer"
-                    >
-                      Reset Search
-                    </button>
+                    {appProducts.length === 0 ? (
+                      <p className="text-[11px] text-brand-blue-sky/70 font-mono">
+                        New boutique arrivals are being added soon.
+                      </p>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setSelectedCategory('all');
+                          setSearchQuery('');
+                        }}
+                        className="px-5 py-2.5 bg-brand-blue-deep hover:bg-brand-pink-deep text-white text-xs font-semibold uppercase tracking-wider rounded-full transition-colors cursor-pointer"
+                      >
+                        Reset Search
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-8">
@@ -705,117 +738,35 @@ export default function App() {
                 </button>
               </div>
 
-              {/* Personalization & Delivery preference selection */}
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-mono uppercase text-brand-blue-sky font-bold block">
-                      Your Full Name
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Chioma Adebayo"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-none border border-brand-blue-primary/15 bg-brand-cream focus:bg-white focus:outline-hidden outline-hidden font-bold text-brand-blue-primary"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-mono uppercase text-brand-blue-sky font-bold block">
-                      Delivery Option
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setDeliveryMethod('delivery')}
-                        className={`flex items-center justify-center gap-1.5 py-1.5 px-3 text-[10px] font-bold uppercase tracking-wider transition-all border cursor-pointer ${
-                          deliveryMethod === 'delivery'
-                            ? 'bg-brand-blue-primary text-white border-brand-blue-primary font-bold'
-                            : 'bg-brand-cream text-brand-blue-sky border-brand-blue-primary/10 hover:bg-white'
-                        }`}
-                      >
-                        <Truck className="w-3.5 h-3.5" /> Delivery
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeliveryMethod('pickup')}
-                        className={`flex items-center justify-center gap-1.5 py-1.5 px-3 text-[10px] font-bold uppercase tracking-wider transition-all border cursor-pointer ${
-                          deliveryMethod === 'pickup'
-                            ? 'bg-brand-blue-primary text-white border-brand-blue-primary font-bold'
-                            : 'bg-brand-cream text-brand-blue-sky border-brand-blue-primary/10 hover:bg-white'
-                        }`}
-                      >
-                        <Store className="w-3.5 h-3.5" /> Shop Pickup
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Conditional fields based on selected preference */}
-                {deliveryMethod === 'delivery' ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1"
-                  >
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-mono uppercase text-brand-blue-sky font-bold block">
-                        Delivery Region / State
-                      </label>
-                      <select
-                        value={deliveryLocation}
-                        onChange={(e) => setDeliveryLocation(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-none border border-brand-blue-primary/15 bg-brand-cream focus:bg-white focus:outline-hidden outline-hidden cursor-pointer font-bold text-brand-blue-primary"
-                      >
-                        <option value="Lagos Island">Lagos Island (Ikoyi, VI, Lekki, Chevron)</option>
-                        <option value="Lagos Mainland">Lagos Mainland (Ikeja, Surulere, Yaba, Gbagada)</option>
-                        <option value="Abuja FCT">Abuja FCT (Maitama, Wuse, Garki)</option>
-                        <option value="Port Harcourt">Port Harcourt City</option>
-                        <option value="Other Nigerian State">Other Nigerian State (FedEx Courier)</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-mono uppercase text-brand-pink-deep font-bold block flex justify-between">
-                        <span>Write Delivery Address *</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. 15 Admiralty Way, Lekki Phase 1, Lagos"
-                        value={deliveryAddress}
-                        onChange={(e) => setDeliveryAddress(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-none border border-brand-blue-primary/15 bg-brand-cream focus:bg-white focus:outline-hidden outline-hidden font-bold text-brand-blue-primary placeholder:text-brand-blue-sky/40"
-                      />
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-brand-pink-light/45 border border-brand-pink-medium/15 p-3 text-xs text-brand-blue-primary flex items-start gap-3"
-                  >
-                    <MapPin className="w-4 h-4 text-brand-pink-primary shrink-0 mt-0.5" />
-                    <div className="space-y-0.5 text-left">
-                      <p className="font-bold uppercase tracking-wider text-[10px] text-brand-pink-deep">
-                        Complimentary Flagship Store Pickup
-                      </p>
-                      <p className="text-[10.5px] leading-relaxed text-brand-blue-sky/85 font-light">
-                        Pre-packaged and waiting for you at our high-end concierge lounge. No delivery fees apply.
-                      </p>
-                      <p className="text-[10px] font-mono font-bold mt-1 text-brand-blue-primary">
-                        📍 Dr Bodyshaper Boutique Headquarters, VI, Lagos, Nigeria.
-                      </p>
-                    </div>
-                  </motion.div>
-                )}
+              {/* Customer Name */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-mono uppercase text-brand-blue-sky font-bold block">
+                  Your Full Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Chioma Adebayo"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-none border border-brand-blue-primary/15 bg-brand-cream focus:bg-white focus:outline-hidden outline-hidden font-bold text-brand-blue-primary"
+                />
               </div>
+
+              {/* Delivery Cost Calculator UI with Dynamic Region & Fee Calculation */}
+              <DeliveryCostCalculator
+                subtotal={cartSubtotal}
+                deliveryMethod={deliveryMethod}
+                onDeliveryMethodChange={setDeliveryMethod}
+                selectedZoneId={selectedDeliveryZoneId}
+                onZoneChange={setSelectedDeliveryZoneId}
+                deliveryAddress={deliveryAddress}
+                onDeliveryAddressChange={setDeliveryAddress}
+              />
 
               {/* Live Preview of formatted Inquiry block */}
               <div className="space-y-1.5">
                 <p className="text-[9px] font-mono uppercase text-brand-blue-sky font-bold">
-                  Formatted Draft Message (Includes Photo URLs):
+                  Formatted Draft Message (Includes Photo URLs & Delivery Calculation):
                 </p>
                 
                 <div className="bg-brand-cream p-4 rounded-none border border-dotted border-brand-pink-medium/60 max-h-[220px] overflow-y-auto font-mono text-[10px] text-brand-blue-primary whitespace-pre-wrap leading-relaxed">
@@ -839,23 +790,21 @@ export default function App() {
                     );
                   }).join('')}
                   {`===================================\n`}
-                  {`Order Subtotal: ${formatNairaValue(cartItems.reduce((acc, i) => acc + i.product.price * i.quantity, 0))}\n`}
+                  {`Order Subtotal: ${formatNairaValue(cartSubtotal)}\n`}
                   {`Delivery Option: ${deliveryMethod === 'pickup' ? 'PICKUP IN SHOP (Complimentary)' : 'DELIVERY TO ADDRESS'}\n`}
                   {deliveryMethod === 'delivery' ? (
-                    `Delivery Region: ${deliveryLocation}\n` +
+                    `Destination Region: ${currentZone.name}\n` +
                     `Delivery Address: ${deliveryAddress || 'No address specified'}\n` +
-                    `Delivery Fee: ${cartItems.reduce((acc, i) => acc + i.product.price * i.quantity, 0) >= 150000 ? 'FREE (COMPLIMENTARY PROMO)' : '₦5,000'}\n`
+                    `Estimated Transit: ${currentZone.transitTime}\n` +
+                    `Delivery Fee: ${deliveryCalc.isFreePromo ? 'FREE (₦150,000+ COMPLIMENTARY PROMO)' : formatNairaValue(deliveryCalc.fee)}\n`
                   ) : (
-                    `Pickup Location: Dr Bodyshaper Flagship Store, Lagos, Nigeria\n` +
+                    `Pickup Location: Faith Plaza beside Dubai Mall, Breadfruit, Lagos, Nigeria\n` +
                     `Delivery Fee: FREE (SHOP PICKUP)\n`
                   )}
                   {`-----------------------------------\n`}
-                  {`ESTIMATED GRAND TOTAL: ${formatNairaValue(
-                    cartItems.reduce((acc, i) => acc + i.product.price * i.quantity, 0) + 
-                    (deliveryMethod === 'pickup' || cartItems.reduce((acc, i) => acc + i.product.price * i.quantity, 0) >= 150000 ? 0 : 5000)
-                  )}\n`}
+                  {`CALCULATED TOTAL: ${formatNairaValue(checkoutGrandTotal)}\n`}
                   {`===================================\n\n`}
-                  {`Customer Info: faroukayomide33@gmail.com${customerName ? ` (${customerName}, Option: ${deliveryMethod === 'delivery' ? `Delivery to ${deliveryLocation}` : 'Pickup in Shop'})` : ''}\n`}
+                  {`Customer: faroukayomide33@gmail.com${customerName ? ` (${customerName}, Option: ${deliveryMethod === 'delivery' ? `Delivery to ${currentZone.name}` : 'Pickup in Shop'})` : ''}\n`}
                   {`Session Timestamp: ${new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })} (Lagos Time)\n\n`}
                   {`Please confirm item availability, bespoke fitting options, and dispatch window. Thank you!`}
                 </div>

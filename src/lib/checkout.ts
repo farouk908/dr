@@ -1,4 +1,5 @@
 import { CartItem } from '../types';
+import { calculateDeliveryFee, getDeliveryZoneById } from './delivery';
 
 /**
  * Formats a number to Nigerian Naira ₦
@@ -11,12 +12,15 @@ export const formatNairaValue = (amount: number) => {
   }).format(amount);
 };
 
-interface CompileCheckoutParams {
+export interface CompileCheckoutParams {
   cartItems: CartItem[];
   userEmail?: string;
   deliveryMethod?: 'delivery' | 'pickup';
   deliveryLocation?: string;
   deliveryAddress?: string;
+  deliveryZoneId?: string;
+  deliveryFee?: number;
+  transitTime?: string;
 }
 
 /**
@@ -28,13 +32,19 @@ export function compileWhatsAppCheckoutUrl({
   userEmail,
   deliveryMethod = 'delivery',
   deliveryLocation = 'Lagos Island',
-  deliveryAddress = ''
+  deliveryAddress = '',
+  deliveryZoneId = 'lagos-island',
+  deliveryFee,
+  transitTime
 }: CompileCheckoutParams): string {
   const subtotal = cartItems.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
-  const freeShippingThreshold = 150000;
-  const isFreeShipping = deliveryMethod === 'pickup' || subtotal >= freeShippingThreshold;
-  const deliveryCharge = isFreeShipping ? 0 : 5000;
-  const grandTotal = subtotal + deliveryCharge;
+  
+  const zone = getDeliveryZoneById(deliveryZoneId);
+  const calculation = calculateDeliveryFee(deliveryMethod, deliveryZoneId, subtotal);
+  const effectiveDeliveryFee = deliveryFee !== undefined ? deliveryFee : calculation.fee;
+  const grandTotal = subtotal + effectiveDeliveryFee;
+  const isFreePromo = calculation.isFreePromo && deliveryMethod === 'delivery';
+  const effectiveTransit = transitTime || zone.transitTime;
 
   let message = `✦ DR BODYSHAPER BOUTIQUE LUXURY ORDER ✦\n`;
   message += `===================================\n\n`;
@@ -62,11 +72,12 @@ export function compileWhatsAppCheckoutUrl({
   message += `Delivery Option: ${deliveryMethod === 'pickup' ? 'PICKUP IN SHOP (Complimentary)' : 'DELIVERY TO ADDRESS'}\n`;
   
   if (deliveryMethod === 'delivery') {
-    message += `Delivery Region: ${deliveryLocation}\n`;
+    message += `Delivery Region: ${deliveryLocation} (${zone.name})\n`;
+    message += `Estimated Transit: ${effectiveTransit}\n`;
     message += `Delivery Address: ${deliveryAddress || 'No address specified'}\n`;
-    message += `Delivery Fee: ${isFreeShipping ? 'FREE (COMPLIMENTARY PROMO)' : formatNairaValue(deliveryCharge)}\n`;
+    message += `Delivery Fee: ${isFreePromo ? 'FREE (COMPLIMENTARY PROMO ON ₦150k+)' : formatNairaValue(effectiveDeliveryFee)}\n`;
   } else {
-    message += `Pickup Location: Dr Bodyshaper Flagship Store, Lagos, Nigeria\n`;
+    message += `Pickup Location: Dr Bodyshaper Flagship Store, VI, Lagos, Nigeria\n`;
     message += `Delivery Fee: FREE (SHOP PICKUP)\n`;
   }
   
@@ -75,7 +86,7 @@ export function compileWhatsAppCheckoutUrl({
   message += `===================================\n\n`;
 
   if (userEmail) {
-    message += `Customer Email/Info: ${userEmail}\n`;
+    message += `Customer Info: ${userEmail}\n`;
   }
   
   message += `Session Timestamp: ${new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })} (Lagos Time)\n\n`;
